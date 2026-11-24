@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#123D2A">
+<title>AgriDoctor AI</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AgriDoctor">
+<style>
+  :root { --forest:#123D2A; --leaf:#36A66B; --lime:#A7D66D; --bg:#F3F7F2; --card:#fff; --text:#17251D;
+          --muted:#667770; --line:#E2EAE3; --bad:#B42318; --warn:#A86612; --ok:#218653; --soft:#EAF4EC; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0C1711; --card:#14231A; --text:#E8F1EA; --muted:#A0B2A5; --line:#293B30;
+            --soft:#1B3324; --bad:#FF8585; --warn:#F2BE68; --ok:#68D69A; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position:sticky; top:0; z-index:5; background:var(--forest); color:#fff;
+           padding:calc(10px + env(safe-area-inset-top, 0px)) 14px 10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  header b { font-size:18px; flex:1; }
+  .chip { font-size:11px; padding:3px 9px; border-radius:99px; background:rgba(255,255,255,.16); }
+  .chip.ok { background:#1f7a4d; }
+  .chip.wait { background:#8a5a0a; }
+  .hbtn { border:1px solid rgba(255,255,255,.4); background:transparent; color:#fff; border-radius:9px; padding:6px 10px; font-size:12px; }
+  main { padding:16px 14px calc(90px + env(safe-area-inset-bottom, 0px)); max-width:720px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:16px; margin:0 0 10px; } h3 { font-size:14px; margin:14px 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; }
+  .btn { padding:12px 16px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--text);
+         font-size:15px; font-weight:600; }
+  .btn.pri { background:#1C7048; color:#fff; border-color:#1C7048; }
+  .btn:disabled { opacity:.5; }
+  .btn.danger { color:var(--bad); }
+  .row2 { display:flex; gap:10px; flex-wrap:wrap; }
+  #preview, .res-img { display:none; width:100%; max-height:300px; object-fit:contain; border-radius:12px; background:var(--soft); margin:12px 0; }
+  .res-img { display:block; margin:0 0 10px; }
+  .bar { background:var(--soft); border-radius:99px; height:9px; margin:6px 0 10px; overflow:hidden; }
+  .fill { background:linear-gradient(90deg,#2C9560,#9ACD68); height:9px; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--warn); } .muted { color:var(--muted); } .small { font-size:12px; }
+  ul { margin:4px 0 0 18px; padding:0; } li { margin:3px 0; }
+  .name { font-size:22px; font-weight:700; margin:6px 0 2px; }
+  .hrow { display:flex; gap:12px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); }
+  .hrow img { width:56px; height:56px; border-radius:10px; object-fit:cover; background:var(--soft); }
+  .hrow .grow { flex:1; min-width:0; }
+  nav { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--forest); z-index:6;
+        padding-bottom:env(safe-area-inset-bottom, 0px); }
+  nav button { flex:1; background:none; border:0; color:#D7E9DC; padding:10px 0; font-size:12px; }
+  nav button span { display:block; font-size:20px; }
+  nav button.on { color:#D8F4B8; background:rgba(183,226,139,.15); }
+  .tab { display:none; } .tab.on { display:block; }
+  .note { font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5; }
+  .kv { margin:8px 0; } .kv b { display:block; font-size:12px; color:var(--muted); text-transform:capitalize; }
+</style>
+</head>
+<body>
+<header>
+  <b>AgriDoctor AI</b>
+  <span class="chip" id="status">Starting...</span>
+  <button class="hbtn" id="lang" style="display:none">EN / हिं</button>
+  <button class="hbtn" id="install" style="display:none">Install</button>
+</header>
+
+<main>
+  <section class="tab on" id="t-detect">
+    <h1>Check a leaf</h1>
+    <p class="sub">One leaf, close up, in good light. Everything runs on this phone.</p>
+    <div class="card">
+      <input type="file" id="cam" accept="image/*" capture="environment" style="display:none">
+      <input type="file" id="pick" accept="image/*" style="display:none">
+      <div class="row2">
+        <button class="btn" id="camBtn">Take a photo</button>
+        <button class="btn" id="pickBtn">Choose a photo</button>
+      </div>
+      <img id="preview" alt="Your photo">
+      <p><button class="btn pri" id="go" disabled>Find the disease</button></p>
+    </div>
+    <div id="result"></div>
+  </section>
+
+  <section class="tab" id="t-history">
+    <h1>History</h1>
+    <p class="sub">Saved only on this phone.</p>
+    <div class="card" id="hist"></div>
+  </section>
+
+  <section class="tab" id="t-about">
+    <h1>About</h1>
+    <div class="card">
+      <p>AgriDoctor AI looks at a photo of a plant leaf and names the most likely disease. The model is stored on this phone, so it works without internet after the first visit.</p>
+      <p class="muted small">The result is an AI estimate from one photo. It is not a laboratory diagnosis. Before using any spray or chemical, show the plant to a local agriculture officer or Krishi Vigyan Kendra.</p>
+      <p class="muted small" id="aboutInfo"></p>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button class="on" data-t="detect"><span>&#128300;</span>Detect</button>
+  <button data-t="history"><span>&#128338;</span>History</button>
+  <button data-t="about"><span>&#8505;&#65039;</span>About</button>
+</nav>
+
+<script src="ort/ort.wasm.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  var SIZE = 224, MEAN = [0.485, 0.456, 0.406], STD = [0.229, 0.224, 0.225];
+  var LOW = 0.5, labels = [], kb = {}, sessionP = null, lang = "en", lastResult = null;
+  try { lang = localStorage.getItem("lang") || "en"; } catch (e) {}
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function pretty(l) { return l.replace(/___/g, " - ").replace(/_/g, " ").trim(); }
+  function pct(x) { return (x * 100).toFixed(1) + "%"; }
+
+  // ---------- tabs ----------
+  Array.prototype.forEach.call(document.querySelectorAll("nav button"), function (b) {
+    b.onclick = function () {
+      Array.prototype.forEach.call(document.querySelectorAll("nav button"), function (x) { x.classList.toggle("on", x === b); });
+      Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (t) { t.classList.toggle("on", t.id === "t-" + b.getAttribute("data-t")); });
+      if (b.getAttribute("data-t") === "history") drawHistory();
+      window.scrollTo(0, 0);
+    };
+  });
+
+  // ---------- offline status ----------
+  var st = $("status");
+  function setStatus(txt, cls) { st.textContent = txt; st.className = "chip " + (cls || ""); }
+  function checkReady() {
+    if (!("caches" in window)) { setStatus("Online only", "wait"); return; }
+    caches.match("model.onnx").then(function (hit) {
+      if (hit) setStatus("Offline ready", "ok"); else setStatus("Saving for offline...", "wait");
+    });
+  }
+  var NATIVE_APP = /AgriDoctorApp/.test(navigator.userAgent);
+  if (NATIVE_APP) {
+    // Inside the APK everything (model, runtime) is already on the phone.
+    setStatus("Offline ready", "ok");
+  } else if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", function (e) { if (e.data && e.data.type === "ready") checkReady(); });
+    navigator.serviceWorker.register("sw.js").then(function () { return navigator.serviceWorker.ready; }).then(checkReady)
+      .catch(function () { setStatus("Offline mode failed", "wait"); });
+    setTimeout(checkReady, 4000);
+  } else { setStatus("Needs https for offline", "wait"); }
+
+  // ---------- install ----------
+  var deferred = null, inst = $("install");
+  var standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone;
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); deferred = e; if (!standalone) inst.style.display = ""; });
+  inst.onclick = function () { if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { deferred = null; inst.style.display = "none"; }); } };
+  window.addEventListener("appinstalled", function () { inst.style.display = "none"; });
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) {
+    inst.textContent = "Add to Home Screen"; inst.style.display = "";
+    inst.onclick = function () { alert('In Safari, tap the Share icon, then choose "Add to Home Screen".'); };
+  }
+
+  // ---------- data ----------
+  var dataP = Promise.all([
+    fetch("labels.json").then(function (r) { if (!r.ok) throw new Error("labels.json missing"); return r.json(); }),
+    fetch("kb.json").then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; })
+  ]).then(function (a) {
+    labels = a[0]; kb = a[1] || {};
+    var hasHi = Object.keys(kb).some(function (k) { return kb[k] && kb[k].advice_hi; });
+    if (hasHi) $("lang").style.display = "";
+    $("aboutInfo").textContent = "Model knows " + labels.length + " plant conditions. Guidance entries: " + Object.keys(kb).length + ".";
+  });
+  $("lang").onclick = function () {
+    lang = lang === "en" ? "hi" : "en";
+    try { localStorage.setItem("lang", lang); } catch (e) {}
+    if (lastResult) showResult(lastResult);
+  };
+
+  // ---------- model ----------
+  function getSession() {
+    if (sessionP) return sessionP;
+    if (typeof ort === "undefined") return Promise.reject(new Error("ONNX runtime files are missing (ort folder)."));
+    ort.env.wasm.wasmPaths = new URL("ort/", location.href).href;
+    ort.env.wasm.numThreads = 1;
+    sessionP = fetch("model.onnx").then(function (r) {
+      if (!r.ok) throw new Error("model.onnx not found");
+      return r.arrayBuffer();
+    }).then(function (buf) {
+      return ort.InferenceSession.create(buf, { executionProviders: ["wasm"] });
+    }).catch(function (e) { sessionP = null; throw e; });
+    return sessionP;
+  }
+
+  function loadImage(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () { resolve({ img: img, url: url }); };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("This file is not a readable photo.")); };
+      img.src = url;
+    });
+  }
+
+  function toTensor(img) {
+    var c = document.createElement("canvas"); c.width = c.height = SIZE;
+    var x = c.getContext("2d"); x.drawImage(img, 0, 0, SIZE, SIZE);
+    var d = x.getImageData(0, 0, SIZE, SIZE).data, n = SIZE * SIZE, f = new Float32Array(3 * n);
+    for (var i = 0; i < n; i++) {
+      f[i] = (d[i * 4] / 255 - MEAN[0]) / STD[0];
+      f[n + i] = (d[i * 4 + 1] / 255 - MEAN[1]) / STD[1];
+      f[2 * n + i] = (d[i * 4 + 2] / 255 - MEAN[2]) / STD[2];
+    }
+    return new ort.Tensor("float32", f, [1, 3, SIZE, SIZE]);
+  }
+
+  function thumb(img) {
+    var c = document.createElement("canvas"); c.width = c.height = 96;
+    var x = c.getContext("2d"), s = Math.min(img.naturalWidth, img.naturalHeight);
+    x.drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, 96, 96);
+    return c.toDataURL("image/jpeg", 0.6);
+  }
+
+  function predict(file) {
+    return Promise.all([dataP, getSession(), loadImage(file)]).then(function (a) {
+      var session = a[1], li = a[2], tensor = toTensor(li.img), feeds = {};
+      feeds[session.inputNames[0]] = tensor;
+      return session.run(feeds).then(function (out) {
+        var logits = out[session.outputNames[0]].data, mx = -Infinity, i, sum = 0;
+        if (logits.length !== labels.length)
+          throw new Error("Model has " + logits.length + " outputs but labels.json has " + labels.length + " names.");
+        for (i = 0; i < logits.length; i++) if (logits[i] > mx) mx = logits[i];
+        var p = new Array(logits.length);
+        for (i = 0; i < logits.length; i++) { p[i] = Math.exp(logits[i] - mx); sum += p[i]; }
+        var idx = p.map(function (v, k) { return k; }).sort(function (u, v) { return p[v] - p[u]; }).slice(0, 3);
+        var top = idx.map(function (k) { return { label: labels[k], name: pretty(labels[k]), conf: p[k] / sum }; });
+        var res = { top: top[0], others: top.slice(1), image: li.url, thumb: thumb(li.img), time: Date.now() };
+        res.healthy = res.top.label.toLowerCase().indexOf("healthy") >= 0;
+        res.low = res.top.conf < LOW;
+        return res;
+      });
+    });
+  }
+
+  // ---------- advice ----------
+  function ruleAdvice(label) {
+    var t = label.toLowerCase().replace(/_/g, " "), causes, actions;
+    function has(list) { return list.some(function (w) { return t.indexOf(w) >= 0; }); }
+    if (has(["healthy"])) {
+      causes = ["No disease was identified by the model."];
+      actions = ["Continue regular crop monitoring.", "Maintain balanced irrigation and nutrition.", "Inspect new leaves regularly for changes."];
+    } else if (has(["bacterial"])) {
+      causes = ["The predicted condition may be associated with bacterial infection.", "Splashing water and contaminated tools can spread some bacterial diseases."];
+      actions = ["Remove badly affected plant material where practical.", "Clean tools between plants.", "Avoid overhead watering.", "Seek local agricultural advice before applying any treatment."];
+    } else if (has(["late blight", "early blight", "leaf spot", "mildew", "rust", "fungal", "scab", "rot", "mold"])) {
+      causes = ["The predicted condition may be associated with fungal infection.", "Wet leaves and humid conditions can encourage some fungal diseases."];
+      actions = ["Remove severely affected leaves where practical.", "Avoid overhead irrigation and improve airflow around plants.", "Avoid working among wet plants.", "Confirm the diagnosis with a local agricultural expert before treatment."];
+    } else if (has(["mosaic", "virus", "viral", "curl"])) {
+      causes = ["The predicted condition may be associated with a plant virus.", "Some plant viruses are spread by insect vectors or infected planting material."];
+      actions = ["Separate suspected infected plants where practical.", "Check plants for aphids, whiteflies and other insect vectors.", "Use healthy planting material.", "Ask a local agricultural expert to confirm the diagnosis."];
+    } else {
+      causes = ["The AI model has identified a possible plant health problem.", "A photograph alone cannot confirm the exact cause."];
+      actions = ["Inspect the whole plant, including the underside of leaves.", "Check watering, drainage and recent fertilizer use.", "Remove severely affected material where practical.", "Get confirmation from a local agricultural expert."];
+    }
+    return { causes: causes, actions: actions };
+  }
+  function kbEntry(label) {
+    var k = label.toLowerCase();
+    for (var key in kb) if (key.toLowerCase() === k) return kb[key];
+    return null;
+  }
+  function ul(a) { return "<ul>" + a.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>"; }
+
+  function showResult(r) {
+    lastResult = r;
+    var cls = r.healthy ? "ok" : "bad", e = kbEntry(r.top.label), ra = ruleAdvice(r.top.label);
+    var title = (lang === "hi" && e && e.name_hi) ? e.name_hi : r.top.name;
+    var h = "<div class='card'><h2>Result</h2><img class='res-img' src='" + esc(r.image) + "' alt='Your leaf'>" +
+      "<p class='name " + cls + "'>" + esc(title) + "</p>" +
+      "<p class='" + cls + "'>" + (r.healthy ? "The plant looks healthy." : "Disease found.") + "</p>" +
+      "<p>" + pct(r.top.conf) + " confidence</p><div class='bar'><div class='fill' style='width:" + (r.top.conf * 100) + "%'></div></div>";
+    if (r.low) h += "<p class='warn'>The model is not sure. Take a clearer photo: one leaf, good light, close up. Treat this result as uncertain.</p>";
+    if (r.others.length) h += "<p class='muted small'>Other possibilities</p>" + r.others.map(function (o) {
+      return "<div>" + pct(o.conf) + " &nbsp; " + esc(o.name) + "</div>"; }).join("");
+    h += "</div><div class='card'><h2>What to do</h2>";
+    var adv = e ? ((lang === "hi" && e.advice_hi) || e.advice_en) : "";
+    if (adv) h += "<p>" + esc(adv) + "</p>";
+    if (e) {
+      var skip = { label:1, "class":1, key:1, id:1, name:1, name_en:1, name_hi:1, advice_en:1, advice_hi:1 };
+      Object.keys(e).forEach(function (k) {
+        var v = e[k]; if (skip[k] || v == null || v === "" || (Array.isArray(v) && !v.length)) return;
+        h += "<div class='kv'><b>" + esc(k.replace(/_/g, " ")) + "</b>" +
+          (Array.isArray(v) ? ul(v.map(function (x) { return typeof x === "object" ? JSON.stringify(x) : x; })) : "<div>" + esc(typeof v === "object" ? JSON.stringify(v) : v) + "</div>") + "</div>";
+      });
+    }
+    h += "<h3>Possible causes</h3>" + ul(ra.causes) + "<h3>Recommended actions</h3>" + ul(ra.actions) +
+      "<h3>Next steps</h3>" + ul(["Check several leaves and more than one plant.", "Compare symptoms with a trusted crop disease guide.",
+        "Recheck the crop over the next 2-3 days.", "Confirm treatment and pesticide use with your local agriculture extension office."]) +
+      "<p class='note'>This is an AI estimate from one photo, not a laboratory diagnosis. It is general guidance only.</p></div>";
+    $("result").innerHTML = h;
+  }
+
+  // ---------- history ----------
+  function getHist() { try { return JSON.parse(localStorage.getItem("hist") || "[]"); } catch (e) { return []; } }
+  function saveHist(r) {
+    var a = getHist();
+    a.unshift({ name: r.top.name, conf: r.top.conf, healthy: r.healthy, low: r.low, thumb: r.thumb, time: r.time });
+    try { localStorage.setItem("hist", JSON.stringify(a.slice(0, 40))); } catch (e) {}
+  }
+  function drawHistory() {
+    var a = getHist();
+    if (!a.length) { $("hist").innerHTML = "<p class='muted'>No checks yet.</p>"; return; }
+    $("hist").innerHTML = a.map(function (r, i) {
+      return "<div class='hrow'><img src='" + esc(r.thumb) + "' alt=''><div class='grow'><b class='" + (r.healthy ? "ok" : "bad") + "'>" + esc(r.name) +
+        "</b> <span class='muted small'>" + pct(r.conf) + (r.low ? " &middot; uncertain" : "") + "</span><div class='muted small'>" +
+        esc(new Date(r.time).toLocaleString()) + "</div></div><button class='btn danger' data-i='" + i + "'>Delete</button></div>";
+    }).join("") + "<p><button class='btn danger' id='clr'>Clear all</button></p>";
+    Array.prototype.forEach.call($("hist").querySelectorAll("button[data-i]"), function (b) {
+      b.onclick = function () { var x = getHist(); x.splice(+b.getAttribute("data-i"), 1);
+        try { localStorage.setItem("hist", JSON.stringify(x)); } catch (e) {} drawHistory(); };
+    });
+    $("clr").onclick = function () { if (confirm("Delete all history?")) { try { localStorage.removeItem("hist"); } catch (e) {} drawHistory(); } };
+  }
+
+  // ---------- detect page ----------
+  var file = null, prev = $("preview"), go = $("go");
+  function chosen(f) {
+    if (!f) return;
+    file = f; prev.src = URL.createObjectURL(f); prev.style.display = "block"; go.disabled = false; $("result").innerHTML = "";
+  }
+  $("camBtn").onclick = function () { $("cam").click(); };
+  $("pickBtn").onclick = function () { $("pick").click(); };
+  $("cam").onchange = function () { chosen(this.files[0]); this.value = ""; };
+  $("pick").onchange = function () { chosen(this.files[0]); this.value = ""; };
+  go.onclick = function () {
+    if (!file) return;
+    go.disabled = true; go.textContent = "Checking...";
+    predict(file).then(function (r) { showResult(r); saveHist(r); })
+      .catch(function (e) { $("result").innerHTML = "<div class='card'><p class='bad'>" + esc(e.message || e) + "</p></div>"; })
+      .then(function () { go.disabled = false; go.textContent = "Find the disease"; });
+  };
+
+  // start loading labels early so the first check is quick
+  dataP.catch(function (e) { setStatus("Data missing", "wait"); });
+})();
+</script>
+</body>
+</html>
